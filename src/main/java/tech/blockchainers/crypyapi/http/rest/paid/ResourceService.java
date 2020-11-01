@@ -1,10 +1,12 @@
 package tech.blockchainers.crypyapi.http.rest.paid;
 
 import org.apache.commons.lang3.RandomUtils;
+import org.springframework.stereotype.Service;
 
-public class Resource {
+@Service
+public class ResourceService {
 
-    private static String[] jokes = {
+    private String[] jokes = {
             "MacGyver can build an airplane out of gum and paper clips. Chuck Norris can kill him and take it.",
             "Chuck Norris doesn't read books. He stares them down until he gets the information he wants.",
             "Chuck Norris lost his virginity before his dad did.",
@@ -15,7 +17,7 @@ public class Resource {
             "Chuck Norris has two speeds: Walk and Kill."
     };
 
-    public static String getBestJokeEver() {
+    public String getBestJokeEver() {
         return jokes[RandomUtils.nextInt(0, jokes.length)];
     }
 

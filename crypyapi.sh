@@ -1,0 +1,1 @@
+docker run -d -p 8888:8888 -e SPRING_CONFIG_LOCATION=/var/config/ -v /var/config:/var/config ice0nine/crypyapi-http-demo:latest
