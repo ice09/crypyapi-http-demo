@@ -14,7 +14,7 @@ import org.web3j.protocol.core.methods.response.EthGetTransactionCount;
 import org.web3j.protocol.core.methods.response.EthSendTransaction;
 import org.web3j.tx.gas.DefaultGasProvider;
 import org.web3j.utils.Numeric;
-import tech.blockchainers.crypyapi.http.rest.proxy.CorrelationService;
+import tech.blockchainers.crypyapi.http.common.proxy.CorrelationService;
 import tech.blockchainers.crypyapi.http.service.SignatureService;
 
 import java.io.IOException;

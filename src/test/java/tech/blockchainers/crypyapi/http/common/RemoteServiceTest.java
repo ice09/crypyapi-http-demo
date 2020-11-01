@@ -2,8 +2,6 @@ package tech.blockchainers.crypyapi.http.common;
 
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -22,7 +20,7 @@ import org.web3j.protocol.core.methods.response.EthSendTransaction;
 import org.web3j.protocol.http.HttpService;
 import org.web3j.tx.gas.DefaultGasProvider;
 import org.web3j.utils.Numeric;
-import tech.blockchainers.crypyapi.http.rest.proxy.PaymentDto;
+import tech.blockchainers.crypyapi.http.common.proxy.PaymentDto;
 import tech.blockchainers.crypyapi.http.service.SignatureService;
 
 import java.io.IOException;
@@ -48,7 +46,7 @@ public class RemoteServiceTest {
 
             Map<String, String> params = new HashMap<>();
             params.put("address", credentials.getAddress());
-            PaymentDto response = restTemplate.getForObject("http://localhost:8889/setup?address={address}", PaymentDto.class, params);
+            PaymentDto response = restTemplate.getForObject("http://localhost:8889/joke/setup?address={address}", PaymentDto.class, params);
             String trxId = response.getTrxId();
             log.debug("Send payment transaction with data '{}'", trxId);
 
@@ -63,7 +61,7 @@ public class RemoteServiceTest {
             headers.set("CPA-Transaction-Hash", trxHash);
 
             HttpEntity<String> entity = new HttpEntity<>(headers);
-            ResponseEntity<String> joke = restTemplate.exchange("http://localhost:8889/request", HttpMethod.GET, entity, String.class);
+            ResponseEntity<String> joke = restTemplate.exchange("http://localhost:8889/joke/request", HttpMethod.GET, entity, String.class);
             log.info(("Hold On: {}").toUpperCase(), joke.getBody().toUpperCase());
             stillMoneyForCheapJokes = getCurrentBalance(credentials.getAddress()).compareTo(BigInteger.ONE.divide(BigInteger.TEN)) > 0;
             if (stillMoneyForCheapJokes) {

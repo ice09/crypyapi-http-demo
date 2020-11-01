@@ -1,4 +1,4 @@
-package tech.blockchainers.crypyapi.http.rest.proxy;
+package tech.blockchainers.crypyapi.http.common.proxy;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

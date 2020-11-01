@@ -1,4 +1,4 @@
-package tech.blockchainers.crypyapi.http.rest.proxy;
+package tech.blockchainers.crypyapi.http.common.proxy;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -15,7 +15,7 @@ import org.web3j.protocol.core.methods.response.EthBlock;
 import org.web3j.protocol.core.methods.response.EthGetTransactionReceipt;
 import org.web3j.protocol.core.methods.response.Transaction;
 import org.web3j.utils.Numeric;
-import tech.blockchainers.crypyapi.http.rest.paid.ResourceService;
+import tech.blockchainers.crypyapi.http.rest.paid.BestJokeEverService;
 import tech.blockchainers.crypyapi.http.service.SignatureService;
 
 import java.io.IOException;
@@ -32,14 +32,14 @@ public class CorrelationService {
 
     private Map<String, PaymentDto> correlationIdToTrx = new HashMap<>();
     private final SignatureService signatureService;
-    private final ResourceService resourceService;
+    private final BestJokeEverService bestJokeEverService;
     private final Web3j httpWeb3;
     private final Credentials credentials;
     private BigInteger lastBlock = BigInteger.ZERO;
 
-    public CorrelationService(SignatureService signatureService, Web3j httpWeb3, ResourceService resourceService, Credentials credentials) {
+    public CorrelationService(SignatureService signatureService, Web3j httpWeb3, BestJokeEverService bestJokeEverService, Credentials credentials) {
         this.signatureService = signatureService;
-        this.resourceService = resourceService;
+        this.bestJokeEverService = bestJokeEverService;
         this.httpWeb3 = httpWeb3;
         this.credentials = credentials;
         determineBlocknumber();
@@ -76,7 +76,7 @@ public class CorrelationService {
         }
         String signerAddress = calculateSignerAddress(trxHash, signedTrx);
         if (signerAddress.toLowerCase().equals(paymentDto.getAddress().substring(2).toLowerCase())) {
-            String joke = resourceService.getBestJokeEver();
+            String joke = bestJokeEverService.getBestJokeEver();
             correlationIdToTrx.remove(paymentDto.getTrxId());
             return joke;
         }

@@ -4,7 +4,7 @@ import org.apache.commons.lang3.RandomUtils;
 import org.springframework.stereotype.Service;
 
 @Service
-public class ResourceService {
+public class BestJokeEverService {
 
     private String[] jokes = {
             "MacGyver can build an airplane out of gum and paper clips. Chuck Norris can kill him and take it.",
