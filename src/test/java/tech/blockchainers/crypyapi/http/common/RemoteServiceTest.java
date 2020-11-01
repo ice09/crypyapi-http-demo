@@ -36,7 +36,7 @@ public class RemoteServiceTest {
 
     private Web3j web3j = Web3j.build(new HttpService("https://sokol.poa.network"));
 
-    @Test
+    //@Test
     public void shouldCallCompletePaymentFlow() throws InterruptedException, ExecutionException, IOException {
         Credentials credentials = CredentialsUtil.createRandomCredentials();
         waitForMoney(credentials.getAddress());

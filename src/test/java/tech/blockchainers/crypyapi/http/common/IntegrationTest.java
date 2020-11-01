@@ -22,7 +22,7 @@ import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutionException;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
 @EnableScheduling
@@ -47,9 +47,8 @@ public class IntegrationTest {
         String trxId = correlationService.storeNewIdentifier(proxyCredentials.getAddress());
         correlationService.notifyOfTransaction(trxId, "0xHASH");
         String signedTrxId = signatureService.sign(trxId, proxyCredentials);
-        String content = correlationService.callService("0xHASH", signedTrxId);
-        log.info(content);
-        assertNotNull(content);
+        boolean isServiceCallAllowed = correlationService.isServiceCallAllowed("0xHASH", signedTrxId);
+        assertTrue(isServiceCallAllowed);
     }
 
     @Test
@@ -61,9 +60,8 @@ public class IntegrationTest {
         log.debug("Sent transaction {}", trxHash);
         pause(10000);
         String signedTrxId = signatureService.sign(trxId, testnetCredentials);
-        String content = correlationService.callService(trxHash, signedTrxId);
-        log.info(content);
-        assertNotNull(content);
+        boolean isServiceCallAllowed = correlationService.isServiceCallAllowed(trxHash, signedTrxId);
+        assertTrue(isServiceCallAllowed);
     }
 
     private void pause(long ms) {

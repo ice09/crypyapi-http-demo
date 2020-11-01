@@ -65,7 +65,7 @@ public class CorrelationService {
         correlationIdToTrx.get(trxId).setTrxId(trxId);
     }
 
-    public String callService(String trxHash, String signedTrx) throws IOException, InterruptedException {
+    public boolean isServiceCallAllowed(String trxHash, String signedTrx) throws IOException, InterruptedException {
         PaymentDto paymentDto = getCorrelationByTrxHash(trxHash);
         if (paymentDto == null) {
             waitForTransaction(trxHash);
@@ -75,12 +75,11 @@ public class CorrelationService {
             }
         }
         String signerAddress = calculateSignerAddress(trxHash, signedTrx);
-        if (signerAddress.toLowerCase().equals(paymentDto.getAddress().substring(2).toLowerCase())) {
-            String joke = bestJokeEverService.getBestJokeEver();
+        boolean addressMatch = (signerAddress.toLowerCase().equals(paymentDto.getAddress().substring(2).toLowerCase()));
+        if (addressMatch) {
             correlationIdToTrx.remove(paymentDto.getTrxId());
-            return joke;
         }
-        return null;
+        return addressMatch;
     }
 
     private String calculateSignerAddress(String trxHash, String signedTrx) {
