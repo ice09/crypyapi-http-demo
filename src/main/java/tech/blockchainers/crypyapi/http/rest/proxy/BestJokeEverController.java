@@ -4,7 +4,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.web3j.crypto.Credentials;
+import tech.blockchainers.crypyapi.http.common.annotation.Payable;
 import tech.blockchainers.crypyapi.http.common.proxy.CorrelationService;
 import tech.blockchainers.crypyapi.http.common.rest.ServiceControllerProxy;
 import tech.blockchainers.crypyapi.http.rest.paid.BestJokeEverService;
@@ -24,11 +27,8 @@ public class BestJokeEverController extends ServiceControllerProxy {
     }
 
     @GetMapping("/request")
+    @Payable
     public String requestService(@RequestHeader("CPA-Transaction-Hash") String trxHash, @RequestHeader("CPA-Signed-Identifier") String signedTrxId) throws IOException, InterruptedException {
-        boolean serviceCallAllowed = correlationService.isServiceCallAllowed(trxHash, signedTrxId);
-        if (serviceCallAllowed) {
-            return bestJokeEverService.getBestJokeEver();
-        }
-        return "sorry, no joke today.";
+        return bestJokeEverService.getBestJokeEver();
     }
 }

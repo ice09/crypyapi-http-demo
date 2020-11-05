@@ -9,6 +9,7 @@ import tech.blockchainers.crypyapi.http.common.proxy.CorrelationService;
 import tech.blockchainers.crypyapi.http.common.proxy.PaymentDto;
 import tech.blockchainers.crypyapi.http.service.SignatureService;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 public abstract class ServiceControllerProxy {
@@ -38,5 +39,9 @@ public abstract class ServiceControllerProxy {
         String signedTrxId = signatureService.sign(trxId, signer);
         paymentDto.setSignedTrxId(signedTrxId);
         return paymentDto;
+    }
+
+    public boolean isServiceCallAllowed(String trxHash, String signedTrxId) throws IOException, InterruptedException {
+        return correlationService.isServiceCallAllowed(trxHash, signedTrxId);
     }
 }
