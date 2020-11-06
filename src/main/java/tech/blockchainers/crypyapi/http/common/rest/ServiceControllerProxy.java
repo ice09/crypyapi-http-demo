@@ -41,7 +41,7 @@ public abstract class ServiceControllerProxy {
         return paymentDto;
     }
 
-    public boolean isServiceCallAllowed(String trxHash, String signedTrxId) throws IOException, InterruptedException {
-        return correlationService.isServiceCallAllowed(trxHash, signedTrxId);
+    public boolean isServiceCallAllowed(int amountInWei, String trxHash, String signedTrxId) throws IOException, InterruptedException {
+        return correlationService.isServiceCallAllowed(amountInWei, trxHash, signedTrxId);
     }
 }

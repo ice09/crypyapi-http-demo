@@ -118,7 +118,7 @@ public class RemoteServiceTest {
                         DefaultGasProvider.GAS_PRICE.divide(BigInteger.valueOf(4)),
                         DefaultGasProvider.GAS_LIMIT,
                         serviceAddress,
-                        BigInteger.ONE.divide(BigInteger.TEN),
+                        BigInteger.valueOf(100),
                         Numeric.toHexString(trxId.getBytes(StandardCharsets.UTF_8)));
         byte[] signedTrx = TransactionEncoder.signMessage(trx, credentials);
 

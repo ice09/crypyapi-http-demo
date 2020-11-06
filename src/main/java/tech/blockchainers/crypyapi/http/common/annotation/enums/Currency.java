@@ -1,0 +1,6 @@
+package tech.blockchainers.crypyapi.http.common.annotation.enums;
+
+public enum Currency {
+    wUSD,
+    wEUR;
+}

@@ -9,6 +9,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+import tech.blockchainers.crypyapi.http.common.annotation.Payable;
 import tech.blockchainers.crypyapi.http.common.rest.ServiceControllerProxy;
 
 import javax.annotation.security.RolesAllowed;
@@ -28,9 +29,13 @@ public class PaymentCorrelationAspect {
     public Object validateMethodCall(final ProceedingJoinPoint joinPoint) throws Throwable {
         String signedTrxId = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest().getHeader("CPA-Signed-Identifier");
         String trxHash = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest().getHeader("CPA-Transaction-Hash");
+        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        Method method = signature.getMethod();
+        Payable payable = method.getAnnotation(Payable.class);
 
         ServiceControllerProxy serviceControllerProxy = (ServiceControllerProxy) joinPoint.getTarget();
-        boolean serviceCallAllowed = serviceControllerProxy.isServiceCallAllowed(trxHash, signedTrxId);
+        int amountInWei = payable.equivalentValue();
+        boolean serviceCallAllowed = serviceControllerProxy.isServiceCallAllowed(amountInWei, trxHash, signedTrxId);
         if (serviceCallAllowed) {
             return joinPoint.proceed();
         }

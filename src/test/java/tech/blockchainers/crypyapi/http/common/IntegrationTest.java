@@ -45,9 +45,9 @@ public class IntegrationTest {
     public void testPaymentFlow() throws IOException, InterruptedException {
         log.debug("Signing Address {}", proxyCredentials.getAddress());
         String trxId = correlationService.storeNewIdentifier(proxyCredentials.getAddress());
-        correlationService.notifyOfTransaction(trxId, "0xHASH");
+        correlationService.notifyOfTransaction(0, trxId, "0xHASH");
         String signedTrxId = signatureService.sign(trxId, proxyCredentials);
-        boolean isServiceCallAllowed = correlationService.isServiceCallAllowed("0xHASH", signedTrxId);
+        boolean isServiceCallAllowed = correlationService.isServiceCallAllowed(0, "0xHASH", signedTrxId);
         assertTrue(isServiceCallAllowed);
     }
 
@@ -60,7 +60,7 @@ public class IntegrationTest {
         log.debug("Sent transaction {}", trxHash);
         pause(10000);
         String signedTrxId = signatureService.sign(trxId, testnetCredentials);
-        boolean isServiceCallAllowed = correlationService.isServiceCallAllowed(trxHash, signedTrxId);
+        boolean isServiceCallAllowed = correlationService.isServiceCallAllowed(0, trxHash, signedTrxId);
         assertTrue(isServiceCallAllowed);
     }
 

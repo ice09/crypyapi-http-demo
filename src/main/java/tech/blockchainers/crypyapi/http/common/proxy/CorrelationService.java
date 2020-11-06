@@ -60,12 +60,13 @@ public class CorrelationService {
         return randomId;
     }
 
-    public void notifyOfTransaction(String trxId, String trxHash) {
+    public void notifyOfTransaction(int amount, String trxId, String trxHash) {
         correlationIdToTrx.get(trxId).setTrxHash(trxHash);
         correlationIdToTrx.get(trxId).setTrxId(trxId);
+        correlationIdToTrx.get(trxId).setAmount(amount);
     }
 
-    public boolean isServiceCallAllowed(String trxHash, String signedTrx) throws IOException, InterruptedException {
+    public boolean isServiceCallAllowed(int amountInWei, String trxHash, String signedTrx) throws IOException, InterruptedException {
         PaymentDto paymentDto = getCorrelationByTrxHash(trxHash);
         if (paymentDto == null) {
             waitForTransaction(trxHash);
@@ -74,12 +75,19 @@ public class CorrelationService {
                 throw new IllegalStateException("Cannot correlate trxHash " + trxHash);
             }
         }
+        if (paymentDto.getAmount() < amountInWei) {
+            throw new IllegalStateException("Got only lousy " + paymentDto.getAmount() + " in the transaction, but wanted " + amountInWei + ". Try again next time!");
+        }
         String signerAddress = calculateSignerAddress(trxHash, signedTrx);
         boolean addressMatch = (signerAddress.toLowerCase().equals(paymentDto.getAddress().substring(2).toLowerCase()));
         if (addressMatch) {
             correlationIdToTrx.remove(paymentDto.getTrxId());
         }
         return addressMatch;
+    }
+
+    private int getAmountOfTransaction(String trxHash) throws IOException {
+        return httpWeb3.ethGetTransactionByHash(trxHash).send().getResult().getValue().intValue();
     }
 
     private String calculateSignerAddress(String trxHash, String signedTrx) {
@@ -123,7 +131,7 @@ public class CorrelationService {
 
     private void handleReceivedTransaction(String proxyAddress, Transaction tx) {
         String input = tx.getInput();
-        String value = (tx.getValue() != null) ? tx.getValue().toString() : BigDecimal.ZERO.toString();
+        int value = (tx.getValue() != null) ? tx.getValue().intValue() : 0;
         String from = tx.getFrom();
         String to = tx.getTo();
         log.debug("Got transaction to {} with data {}", to, input);
@@ -134,7 +142,7 @@ public class CorrelationService {
                 log.info("Cannot correlate trxId {}, no entry found, maybe request was already completed.", trxId);
             } else {
                 if (correlationIdToTrx.get(trxId).getAddress().toLowerCase().equals(from)) {
-                    notifyOfTransaction(trxId, tx.getHash());
+                    notifyOfTransaction(value, trxId, tx.getHash());
                 } else {
                     log.info("Cannot correlate trxId {}, from-address {} is different to stored {}", trxId, from, correlationIdToTrx.get(trxId).getAddress());
                 }

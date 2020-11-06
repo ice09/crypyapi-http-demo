@@ -13,7 +13,7 @@ import java.math.BigDecimal;
 @Builder
 public class PaymentDto {
 
-    private String amount;
+    private int amount;
     private String serviceAddress;
     private String trxHash;
     private String trxId;
