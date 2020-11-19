@@ -19,7 +19,6 @@ import tech.blockchainers.crypyapi.http.rest.paid.BestJokeEverService;
 import tech.blockchainers.crypyapi.http.service.SignatureService;
 
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -28,18 +27,16 @@ import java.util.Optional;
 
 @Service
 @Slf4j
-public class CorrelationService {
+public class EthereumCorrelationService {
 
     private Map<String, PaymentDto> correlationIdToTrx = new HashMap<>();
     private final SignatureService signatureService;
-    private final BestJokeEverService bestJokeEverService;
     private final Web3j httpWeb3;
     private final Credentials credentials;
     private BigInteger lastBlock = BigInteger.ZERO;
 
-    public CorrelationService(SignatureService signatureService, Web3j httpWeb3, BestJokeEverService bestJokeEverService, Credentials credentials) {
+    public EthereumCorrelationService(SignatureService signatureService, Web3j httpWeb3, BestJokeEverService bestJokeEverService, Credentials credentials) {
         this.signatureService = signatureService;
-        this.bestJokeEverService = bestJokeEverService;
         this.httpWeb3 = httpWeb3;
         this.credentials = credentials;
         determineBlocknumber();
@@ -99,10 +96,6 @@ public class CorrelationService {
     public PaymentDto getCorrelationByTrxHash(String trxHash) {
         Optional<Map.Entry<String, PaymentDto>> value = correlationIdToTrx.entrySet().stream().filter(it -> (it.getValue().getTrxHash() != null) && it.getValue().getTrxHash().equals(trxHash)).findFirst();
         return value.map(Map.Entry::getValue).orElse(null);
-    }
-
-    public PaymentDto getCorrelationByTrxId(String trxId) {
-        return correlationIdToTrx.get(trxId);
     }
 
     @Scheduled(fixedDelay = 200)

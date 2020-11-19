@@ -5,16 +5,13 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
-import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import tech.blockchainers.crypyapi.http.common.annotation.Payable;
-import tech.blockchainers.crypyapi.http.common.rest.ServiceControllerProxy;
+import tech.blockchainers.crypyapi.http.common.rest.EthereumServiceControllerProxy;
 
-import javax.annotation.security.RolesAllowed;
 import java.lang.reflect.Method;
-import java.util.Arrays;
 
 @Aspect
 @Component
@@ -33,9 +30,9 @@ public class PaymentCorrelationAspect {
         Method method = signature.getMethod();
         Payable payable = method.getAnnotation(Payable.class);
 
-        ServiceControllerProxy serviceControllerProxy = (ServiceControllerProxy) joinPoint.getTarget();
+        EthereumServiceControllerProxy ethereumServiceControllerProxy = (EthereumServiceControllerProxy) joinPoint.getTarget();
         int amountInWei = payable.equivalentValue();
-        boolean serviceCallAllowed = serviceControllerProxy.isServiceCallAllowed(amountInWei, trxHash, signedTrxId);
+        boolean serviceCallAllowed = ethereumServiceControllerProxy.isServiceCallAllowed(amountInWei, trxHash, signedTrxId);
         if (serviceCallAllowed) {
             return joinPoint.proceed();
         }

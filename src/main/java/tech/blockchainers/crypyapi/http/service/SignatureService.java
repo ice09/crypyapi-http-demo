@@ -4,22 +4,35 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.web3j.crypto.Credentials;
 import org.web3j.crypto.ECDSASignature;
+import org.web3j.crypto.ECKeyPair;
 import org.web3j.crypto.Hash;
 import org.web3j.crypto.Keys;
 import org.web3j.crypto.Sign;
 import org.web3j.utils.Numeric;
+import tech.blockchainers.crypyapi.http.common.CredentialsUtil;
 
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyPair;
 import java.util.Arrays;
 
 @Slf4j
 @Service
 public class SignatureService {
 
-    public String sign(String message, Credentials credentials) {
-        Sign.SignatureData signature = Sign.signPrefixedMessage(Hash.sha3(message.getBytes(StandardCharsets.UTF_8)), credentials.getEcKeyPair());
+    public String signEthereum(String message, ECKeyPair keyPair) {
+        Sign.SignatureData signature = Sign.signPrefixedMessage(Hash.sha3(message.getBytes(StandardCharsets.UTF_8)), keyPair);
+        return sign(signature);
+    }
+
+    public String signLibra(String message, KeyPair keyPair) {
+        CredentialsUtil.deriveLibraPrivateKey()
+        Sign.SignatureData signature = Sign.signPrefixedMessage(Hash.sha3(message.getBytes(StandardCharsets.UTF_8)), ECKeyPair.create(keyPair));
+        return sign(signature);
+    }
+
+    private String sign(Sign.SignatureData signature) {
         ByteBuffer sigBuffer = ByteBuffer.allocate(signature.getR().length + signature.getS().length + 1);
         sigBuffer.put(signature.getR());
         sigBuffer.put(signature.getS());

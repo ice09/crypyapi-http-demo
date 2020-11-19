@@ -32,13 +32,13 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 @Slf4j
-public class RemoteServiceTest {
+public class RemoteEthereumServiceTest {
 
     private Web3j web3j = Web3j.build(new HttpService("https://sokol.poa.network"));
 
     //@Test
     public void shouldCallCompletePaymentFlow() throws InterruptedException, ExecutionException, IOException {
-        Credentials credentials = CredentialsUtil.createRandomCredentials();
+        Credentials credentials = CredentialsUtil.createRandomEthereumCredentials();
         waitForMoney(credentials.getAddress());
         boolean stillMoneyForCheapJokes = getCurrentBalance(credentials.getAddress()).compareTo(BigInteger.ONE.divide(BigInteger.TEN)) > 0;
         while (stillMoneyForCheapJokes) {
@@ -53,7 +53,7 @@ public class RemoteServiceTest {
             String trxHash = sendSokolTestTransaction(credentials, trxId, response.getServiceAddress());
             waitForTransaction(trxHash);
 
-            String signedTrxId = new SignatureService().sign(trxId, credentials);
+            String signedTrxId = new SignatureService().signEthereum(trxId, credentials.getEcKeyPair());
 
             HttpHeaders headers = new HttpHeaders();
             headers.setAccept(Arrays.asList(MediaType.ALL));

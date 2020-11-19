@@ -1,6 +1,11 @@
 package tech.blockchainers.crypyapi.http.common;
 
+import dev.jlibra.AuthenticationKey;
+import dev.jlibra.client.LibraClient;
 import okhttp3.OkHttpClient;
+import org.bouncycastle.jcajce.provider.asymmetric.edec.BCEdDSAPrivateKey;
+import org.bouncycastle.jcajce.provider.asymmetric.edec.BCEdDSAPublicKey;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -8,22 +13,46 @@ import org.web3j.crypto.Credentials;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.http.HttpService;
 
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.Security;
 import java.util.concurrent.TimeUnit;
 
 @Configuration
 public class ApplicationConfiguration {
 
-    @Value("${rpc.url}")
-    private String rpcUrl;
+    @Value("${ethereum.rpc.url}")
+    private String ethereumRpcUrl;
 
-    @Bean
-    public Web3j web3j() {
-        return Web3j.build(new HttpService(rpcUrl, createOkHttpClient()));
+    @Value("${libra.rpc.url}")
+    private String libraRpcUrl;
+
+    static {
+        Security.addProvider(new BouncyCastleProvider());
     }
 
     @Bean
-    public Credentials createCredentials() {
-        return CredentialsUtil.createRandomCredentials();
+    public Web3j web3j() {
+        return Web3j.build(new HttpService(ethereumRpcUrl, createOkHttpClient()));
+    }
+
+    @Bean
+    public LibraClient libraClient() {
+        return LibraClient.builder().withUrl(libraRpcUrl).build();
+    }
+
+    @Bean
+    public Credentials createEthereumCredentials() {
+        return CredentialsUtil.createRandomEthereumCredentials();
+    }
+
+    @Bean
+    public KeyPair createLibraCredentials() throws NoSuchProviderException, NoSuchAlgorithmException {
+        KeyPairGenerator kpGen = KeyPairGenerator.getInstance("Ed25519", "BC");
+        KeyPair keyPair = kpGen.generateKeyPair();
+        return keyPair;
     }
 
     private OkHttpClient createOkHttpClient() {

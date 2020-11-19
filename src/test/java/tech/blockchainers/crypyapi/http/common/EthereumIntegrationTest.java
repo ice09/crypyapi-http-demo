@@ -14,7 +14,7 @@ import org.web3j.protocol.core.methods.response.EthGetTransactionCount;
 import org.web3j.protocol.core.methods.response.EthSendTransaction;
 import org.web3j.tx.gas.DefaultGasProvider;
 import org.web3j.utils.Numeric;
-import tech.blockchainers.crypyapi.http.common.proxy.CorrelationService;
+import tech.blockchainers.crypyapi.http.common.proxy.EthereumCorrelationService;
 import tech.blockchainers.crypyapi.http.service.SignatureService;
 
 import java.io.IOException;
@@ -27,10 +27,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @SpringBootTest
 @EnableScheduling
 @Slf4j
-public class IntegrationTest {
+public class EthereumIntegrationTest {
 
     @Autowired
-    private CorrelationService correlationService;
+    private EthereumCorrelationService ethereumCorrelationService;
 
     @Autowired
     private SignatureService signatureService;
@@ -44,10 +44,10 @@ public class IntegrationTest {
     @Test
     public void testPaymentFlow() throws IOException, InterruptedException {
         log.debug("Signing Address {}", proxyCredentials.getAddress());
-        String trxId = correlationService.storeNewIdentifier(proxyCredentials.getAddress());
-        correlationService.notifyOfTransaction(0, trxId, "0xHASH");
-        String signedTrxId = signatureService.sign(trxId, proxyCredentials);
-        boolean isServiceCallAllowed = correlationService.isServiceCallAllowed(0, "0xHASH", signedTrxId);
+        String trxId = ethereumCorrelationService.storeNewIdentifier(proxyCredentials.getAddress());
+        ethereumCorrelationService.notifyOfTransaction(0, trxId, "0xHASH");
+        String signedTrxId = signatureService.signEthereum(trxId, proxyCredentials.getEcKeyPair());
+        boolean isServiceCallAllowed = ethereumCorrelationService.isServiceCallAllowed(0, "0xHASH", signedTrxId);
         assertTrue(isServiceCallAllowed);
     }
 
@@ -55,12 +55,12 @@ public class IntegrationTest {
     public void testCompleteLifecycle() throws ExecutionException, InterruptedException, IOException {
         String senderSokolPk = "83c8310520992006616ffd7a9e0a9a070f17d9e3443044273c4f2b35fa654e48";
         Credentials testnetCredentials = Credentials.create(senderSokolPk);
-        String trxId = correlationService.storeNewIdentifier(testnetCredentials.getAddress());
+        String trxId = ethereumCorrelationService.storeNewIdentifier(testnetCredentials.getAddress());
         String trxHash = sendSokolTestTransaction(testnetCredentials, trxId);
         log.debug("Sent transaction {}", trxHash);
         pause(10000);
-        String signedTrxId = signatureService.sign(trxId, testnetCredentials);
-        boolean isServiceCallAllowed = correlationService.isServiceCallAllowed(0, trxHash, signedTrxId);
+        String signedTrxId = signatureService.signEthereum(trxId, testnetCredentials.getEcKeyPair());
+        boolean isServiceCallAllowed = ethereumCorrelationService.isServiceCallAllowed(0, trxHash, signedTrxId);
         assertTrue(isServiceCallAllowed);
     }
 
