@@ -38,7 +38,7 @@ public class RemoteServiceTest {
 
     //@Test
     public void shouldCallCompletePaymentFlow() throws InterruptedException, ExecutionException, IOException {
-        Credentials credentials = CredentialsUtil.createRandomCredentials();
+        Credentials credentials = CredentialsUtil.createRandomEthereumCredentials();
         waitForMoney(credentials.getAddress());
         boolean stillMoneyForCheapJokes = getCurrentBalance(credentials.getAddress()).compareTo(BigInteger.ONE.divide(BigInteger.TEN)) > 0;
         while (stillMoneyForCheapJokes) {

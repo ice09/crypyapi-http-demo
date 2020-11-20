@@ -2,22 +2,17 @@ package tech.blockchainers.crypyapi.http.common;
 
 import lombok.extern.slf4j.Slf4j;
 import org.web3j.crypto.Credentials;
-import org.web3j.crypto.ECDSASignature;
 import org.web3j.crypto.ECKeyPair;
 import org.web3j.crypto.Keys;
-import org.web3j.crypto.Sign;
 import org.web3j.utils.Numeric;
 
 import java.math.BigInteger;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
-import java.util.Arrays;
+
 
 @Slf4j
 public class CredentialsUtil {
 
-    public static Credentials createRandomCredentials() {
+    public static Credentials createRandomEthereumCredentials() {
         try {
             // create new private/public key pair
             ECKeyPair keyPair = Keys.createEcKeyPair();
@@ -44,7 +39,7 @@ public class CredentialsUtil {
     }
 
     public static Credentials createFromPrivateKey(String privateKeyHex) {
-        return 	Credentials.create(privateKeyHex);
+        return Credentials.create(privateKeyHex);
     }
 
 }
