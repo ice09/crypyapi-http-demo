@@ -34,20 +34,9 @@ public class ApplicationConfiguration {
     }
 
     @Bean
-    public Web3j web3j() {
-        return Web3j.build(new HttpService(ethereumRpcUrl, createOkHttpClient()));
-    }
-
-    @Bean
     public LibraClient libraClient() {
         return LibraClient.builder().withUrl(libraRpcUrl).build();
     }
-
-    @Bean
-    public Credentials createEthereumCredentials() {
-        return CredentialsUtil.createRandomEthereumCredentials();
-    }
-
     @Bean
     public KeyPair createLibraCredentials() throws NoSuchProviderException, NoSuchAlgorithmException {
         KeyPairGenerator kpGen = KeyPairGenerator.getInstance("Ed25519", "BC");
