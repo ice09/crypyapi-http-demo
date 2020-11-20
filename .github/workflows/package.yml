@@ -3,6 +3,8 @@ name: Package Application
 on:
   push:
     branches:
+      - 'ethereum'
+      - 'libra'
       - 'master'
 
 jobs:
