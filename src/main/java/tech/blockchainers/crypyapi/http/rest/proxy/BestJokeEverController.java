@@ -6,12 +6,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.web3j.crypto.Credentials;
 import tech.blockchainers.crypyapi.http.common.annotation.Payable;
+import tech.blockchainers.crypyapi.http.common.annotation.enums.Currency;
 import tech.blockchainers.crypyapi.http.common.annotation.enums.StableCoin;
 import tech.blockchainers.crypyapi.http.common.proxy.CorrelationService;
 import tech.blockchainers.crypyapi.http.common.rest.ServiceControllerProxy;
 import tech.blockchainers.crypyapi.http.rest.paid.BestJokeEverService;
 import tech.blockchainers.crypyapi.http.service.SignatureService;
-import tech.blockchainers.crypyapi.http.common.annotation.enums.Currency;
 
 import java.io.IOException;
 

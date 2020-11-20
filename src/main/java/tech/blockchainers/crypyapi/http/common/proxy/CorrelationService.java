@@ -19,7 +19,6 @@ import tech.blockchainers.crypyapi.http.rest.paid.BestJokeEverService;
 import tech.blockchainers.crypyapi.http.service.SignatureService;
 
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
