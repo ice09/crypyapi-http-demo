@@ -12,14 +12,13 @@ import org.apache.commons.lang3.StringUtils;
 import org.bouncycastle.util.encoders.Hex;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.web3j.crypto.Hash;
-import org.web3j.utils.Numeric;
 import tech.blockchainers.crypyapi.http.common.CredentialsUtil;
 import tech.blockchainers.crypyapi.http.service.SignatureService;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,7 +52,7 @@ public class LibraCorrelationService {
         correlationIdToTrx.get(trxId).setAmount(amount);
     }
 
-    public boolean isServiceCallAllowed(int amountInWei, String sequenceNumber, String signedTrx) throws IOException, InterruptedException {
+    public boolean isServiceCallAllowed(int amountInWei, String sequenceNumber, String signedTrx) throws InterruptedException, NoSuchAlgorithmException {
         PaymentDto paymentDto = getCorrelationByTrxHash(sequenceNumber);
         if (paymentDto == null) {
             waitForTransaction(sequenceNumber);
@@ -65,12 +64,11 @@ public class LibraCorrelationService {
         if (paymentDto.getAmount() < amountInWei) {
             throw new IllegalStateException("Got only lousy " + paymentDto.getAmount() + " in the transaction, but wanted " + amountInWei + ". Try again next time!");
         }
-        String signerAddress = calculateSignerAddress(sequenceNumber, signedTrx);
-        boolean addressMatch = (signerAddress.toLowerCase().equals(paymentDto.getAddress().substring(2).toLowerCase()));
-        if (addressMatch) {
+        boolean verified = verifySignerSignature(sequenceNumber, signedTrx);
+        if (verified) {
             correlationIdToTrx.remove(paymentDto.getTrxId());
         }
-        return addressMatch;
+        return verified;
     }
 
     private long getAmountOfTransaction(String trxHash) throws IOException {
@@ -89,10 +87,9 @@ public class LibraCorrelationService {
         return 0;
     }
 
-    private String calculateSignerAddress(String trxHash, String signedTrx) {
-        PaymentDto paymentDto = getCorrelationByTrxHash(trxHash);
-        byte[] proof = signatureService.createProof(Hash.sha3(paymentDto.getTrxId().getBytes(StandardCharsets.UTF_8)));
-        return signatureService.ecrecoverAddress(Hash.sha3(proof), Numeric.hexStringToByteArray(signedTrx.substring(2)), paymentDto.getAddress());
+    private boolean verifySignerSignature(String sequenceNumber, String signedTrx) throws NoSuchAlgorithmException {
+        PaymentDto paymentDto = getCorrelationByTrxHash(sequenceNumber);
+        return signatureService.verify(paymentDto.getTrxId().getBytes(StandardCharsets.UTF_8), Hex.decode(signedTrx), credentials.getPublic());
     }
 
     public PaymentDto getCorrelationByTrxHash(String trxHash) {
@@ -100,7 +97,7 @@ public class LibraCorrelationService {
         return value.map(Map.Entry::getValue).orElse(null);
     }
 
-    @Scheduled(fixedDelay = 200)
+    //@Scheduled(fixedDelay = 200)
     private void waitForMoneyTransfer() {
         String proxyAddress = CredentialsUtil.deriveLibraAddress(credentials);
         List<dev.jlibra.client.views.transaction.Transaction> result = libraClient.getAccountTransactions(AccountAddress.fromHexString(proxyAddress), 0, 1000, false);
@@ -152,12 +149,12 @@ public class LibraCorrelationService {
         int tries = 0;
         while (tries < 50) {
             Transaction result = libraClient.getAccountTransaction(AccountAddress.fromHexString(proxyAddress), Long.valueOf(sequenceNumber), true);
-            if (!(result instanceof UserTransaction)) {
+            if (!(result.transaction() instanceof UserTransaction)) {
                 continue;
             }
             for (Event event : result.events()) {
-                if (event instanceof ReceivedPaymentEventData) {
-                    handleReceivedTransaction(CredentialsUtil.deriveLibraAddress(credentials), (ReceivedPaymentEventData) event, (UserTransaction)result);
+                if (event.data() instanceof ReceivedPaymentEventData) {
+                    handleReceivedTransaction(CredentialsUtil.deriveLibraAddress(credentials), (ReceivedPaymentEventData) event.data(), (UserTransaction)result.transaction());
                     break;
                 }
             }

@@ -1,17 +1,11 @@
 package tech.blockchainers.crypyapi.http.common;
 
-import dev.jlibra.AuthenticationKey;
 import dev.jlibra.client.LibraClient;
 import okhttp3.OkHttpClient;
-import org.bouncycastle.jcajce.provider.asymmetric.edec.BCEdDSAPrivateKey;
-import org.bouncycastle.jcajce.provider.asymmetric.edec.BCEdDSAPublicKey;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.web3j.crypto.Credentials;
-import org.web3j.protocol.Web3j;
-import org.web3j.protocol.http.HttpService;
 
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -22,9 +16,6 @@ import java.util.concurrent.TimeUnit;
 
 @Configuration
 public class ApplicationConfiguration {
-
-    @Value("${ethereum.rpc.url}")
-    private String ethereumRpcUrl;
 
     @Value("${libra.rpc.url}")
     private String libraRpcUrl;

@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import tech.blockchainers.crypyapi.http.common.annotation.Payable;
-import tech.blockchainers.crypyapi.http.common.rest.EthereumServiceControllerProxy;
+import tech.blockchainers.crypyapi.http.common.rest.LibraServiceControllerProxy;
 
 import java.lang.reflect.Method;
 
@@ -30,7 +30,7 @@ public class PaymentCorrelationAspect {
         Method method = signature.getMethod();
         Payable payable = method.getAnnotation(Payable.class);
 
-        EthereumServiceControllerProxy ethereumServiceControllerProxy = (EthereumServiceControllerProxy) joinPoint.getTarget();
+        LibraServiceControllerProxy ethereumServiceControllerProxy = (LibraServiceControllerProxy) joinPoint.getTarget();
         int amountInWei = payable.equivalentValue();
         boolean serviceCallAllowed = ethereumServiceControllerProxy.isServiceCallAllowed(amountInWei, trxHash, signedTrxId);
         if (serviceCallAllowed) {

@@ -1,5 +1,6 @@
 package tech.blockchainers.crypyapi.http.common;
 
+import dev.jlibra.client.LibraClient;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpEntity;
@@ -26,19 +27,20 @@ import tech.blockchainers.crypyapi.http.service.SignatureService;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyPair;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 @Slf4j
-public class RemoteEthereumServiceTest {
+public class RemoteLibraServiceTest {
 
-    private Web3j web3j = Web3j.build(new HttpService("https://sokol.poa.network"));
+    private LibraClient libraClient = new LibraClient.LibraClientBuilder().withUrl("https://sokol.poa.network").build();
 
     //@Test
     public void shouldCallCompletePaymentFlow() throws InterruptedException, ExecutionException, IOException {
-        Credentials credentials = CredentialsUtil.createRandomEthereumCredentials();
+        KeyPair credentials = CredentialsUtil.createRandomLibraCredentials();
         waitForMoney(credentials.getAddress());
         boolean stillMoneyForCheapJokes = getCurrentBalance(credentials.getAddress()).compareTo(BigInteger.ONE.divide(BigInteger.TEN)) > 0;
         while (stillMoneyForCheapJokes) {

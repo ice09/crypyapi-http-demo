@@ -1,68 +1,54 @@
 package tech.blockchainers.crypyapi.http.service;
 
+import dev.jlibra.Hash;
+import dev.jlibra.LibraRuntimeException;
+import dev.jlibra.serialization.ByteArray;
+import dev.jlibra.transaction.ImmutableSignature;
 import lombok.extern.slf4j.Slf4j;
+import org.bouncycastle.util.encoders.Hex;
 import org.springframework.stereotype.Service;
-import org.web3j.crypto.ECDSASignature;
-import org.web3j.crypto.ECKeyPair;
-import org.web3j.crypto.Hash;
-import org.web3j.crypto.Keys;
-import org.web3j.crypto.Sign;
-import org.web3j.utils.Numeric;
-import tech.blockchainers.crypyapi.http.common.CredentialsUtil;
 
-import java.math.BigInteger;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
-import java.util.Arrays;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 
 @Slf4j
 @Service
 public class SignatureService {
 
-    public String signEthereum(String message, ECKeyPair keyPair) {
-        Sign.SignatureData signature = Sign.signPrefixedMessage(Hash.sha3(message.getBytes(StandardCharsets.UTF_8)), keyPair);
-        return sign(signature);
+    public String sign(String message, KeyPair keyPair) {
+        return Hex.toHexString(sign(message.getBytes(StandardCharsets.UTF_8), keyPair.getPrivate()));
     }
 
-    public String signLibra(String message, KeyPair keyPair) {
-        CredentialsUtil.deriveLibraPrivateKey()
-        Sign.SignatureData signature = Sign.signPrefixedMessage(Hash.sha3(message.getBytes(StandardCharsets.UTF_8)), ECKeyPair.create(keyPair));
-        return sign(signature);
-    }
-
-    private String sign(Sign.SignatureData signature) {
-        ByteBuffer sigBuffer = ByteBuffer.allocate(signature.getR().length + signature.getS().length + 1);
-        sigBuffer.put(signature.getR());
-        sigBuffer.put(signature.getS());
-        sigBuffer.put(signature.getV());
-        return Numeric.toHexString(sigBuffer.array());
-    }
-
-    public byte[] createProof(byte[] hashedTrxId) {
-        byte[] ethPrefixMessage = "\u0019Ethereum Signed Message:\n".concat(String.valueOf(hashedTrxId.length)).getBytes(StandardCharsets.UTF_8);
-        ByteBuffer sigBuffer = ByteBuffer.allocate(ethPrefixMessage.length + hashedTrxId.length);
-        sigBuffer.put(ethPrefixMessage);
-        sigBuffer.put(hashedTrxId);
-        return sigBuffer.array();
-    }
-
-
-    public String ecrecoverAddress(byte[] proof, byte[] signature, String expectedAddress) {
-        ECDSASignature esig = new ECDSASignature(Numeric.toBigInt(Arrays.copyOfRange(signature, 0, 32)), Numeric.toBigInt(Arrays.copyOfRange(signature, 32, 64)));
-        BigInteger res;
-        for (int i=0; i<4; i++) {
-            res = Sign.recoverFromSignature(i, esig, proof);
-            try {
-                log.debug("Recovered Address 0x{}", Keys.getAddress(res));
-                if (Keys.getAddress(res).toLowerCase().equals(expectedAddress.substring(2).toLowerCase())) {
-                    return Keys.getAddress(res);
-                }
-            } catch (Exception ex) {
-                log.error("Cannot recover address.", ex);
-            }
+    private byte[] sign(byte[] payload, PrivateKey privateKey) {
+        byte[] signature;
+        try {
+            java.security.Signature sgr = java.security.Signature.getInstance("Ed25519", "BC");
+            sgr.initSign(privateKey);
+            sgr.update(createProof(payload));
+            signature = sgr.sign();
+        } catch (Exception var5) {
+            throw new LibraRuntimeException("Signing the transaction failed", var5);
         }
-        return null;
+
+        return ImmutableSignature.builder().signature(ByteArray.from(signature)).build().getSignature().toArray();
     }
+
+    public byte[] createProof(byte[] payload) {
+        return Hash.ofInput(ByteArray.from(payload)).hash(ByteArray.from("LIBRA::RawTransaction".getBytes())).toArray();
+    }
+
+    public boolean verify(byte[] payload, byte[] signature, PublicKey publicKey) {
+        try {
+            java.security.Signature sgr = java.security.Signature.getInstance("Ed25519", "BC");
+            sgr.initVerify(publicKey);
+            sgr.update(createProof(payload));
+            return sgr.verify(signature);
+        } catch (Exception var5) {
+            throw new LibraRuntimeException("Verifying the transaction failed", var5);
+        }
+    }
+
 
 }

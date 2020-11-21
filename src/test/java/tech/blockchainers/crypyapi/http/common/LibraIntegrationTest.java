@@ -34,6 +34,7 @@ import tech.blockchainers.crypyapi.http.service.SignatureService;
 
 import java.io.IOException;
 import java.security.KeyPair;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.concurrent.ExecutionException;
 
@@ -61,23 +62,23 @@ public class LibraIntegrationTest {
     private LibraClient libraClient;
 
     @Test
-    public void testPaymentFlow() throws IOException, InterruptedException {
+    public void testPaymentFlow() throws IOException, InterruptedException, NoSuchAlgorithmException {
         log.debug("Signing Address {}", CredentialsUtil.deriveLibraAddress(proxyCredentials));
         String trxId = libraCorrelationService.storeNewIdentifier(CredentialsUtil.deriveLibraAddress(proxyCredentials));
         libraCorrelationService.notifyOfTransaction(0, trxId, "0xHASH");
-        String signedTrxId = signatureService.signLibra(trxId, proxyCredentials);
+        String signedTrxId = signatureService.sign(trxId, proxyCredentials);
         boolean isServiceCallAllowed = libraCorrelationService.isServiceCallAllowed(0, "0xHASH", signedTrxId);
         assertTrue(isServiceCallAllowed);
     }
 
     @Test
-    public void testCompleteLifecycle() throws ExecutionException, InterruptedException, IOException {
-        mintAmount();
-        String trxId = libraCorrelationService.storeNewIdentifier(CredentialsUtil.deriveLibraAddress(proxyCredentials));
-        String trxHash = sendLibraTestnetTransaction(trxId);
-        log.debug("Sent transaction {}", trxHash);
-        pause(10000);
-        String signedTrxId = signatureService.signLibra(trxId, proxyCredentials);
+    public void testCompleteLifecycle() throws ExecutionException, InterruptedException, IOException, NoSuchAlgorithmException {
+        KeyPair clientCredentials = mintAmount();
+        String trxId = libraCorrelationService.storeNewIdentifier(CredentialsUtil.deriveLibraAddress(clientCredentials));
+        String trxHash = sendLibraTestnetTransaction(clientCredentials, trxId);
+        log.info("Sent transaction {}", trxHash);
+        pause(2000);
+        String signedTrxId = signatureService.sign(trxId, clientCredentials);
         boolean isServiceCallAllowed = libraCorrelationService.isServiceCallAllowed(0, trxHash, signedTrxId);
         assertTrue(isServiceCallAllowed);
     }
@@ -88,9 +89,10 @@ public class LibraIntegrationTest {
         } catch (InterruptedException e) {}
     }
 
-    private void mintAmount() {
+    private KeyPair mintAmount() {
         Faucet faucet = Faucet.builder().build();
-        AuthenticationKey authKey = CredentialsUtil.deriveLibraAuthenticationKey(proxyCredentials.getPublic());
+        KeyPair clientCredentials = CredentialsUtil.createRandomLibraCredentials();
+        AuthenticationKey authKey = CredentialsUtil.deriveLibraAuthenticationKey(clientCredentials.getPublic());
 
         faucet.mint(authKey, 100L * 1_000_000L, "Coin1");
 
@@ -103,10 +105,11 @@ public class LibraIntegrationTest {
         Account account = client.getAccount(AccountAddress.fromAuthenticationKey(authKey));
         log.info("Balance: {} {}", account.balances().get(0).amount() / 1_000_000,
                 account.balances().get(0).currency());
+        return clientCredentials;
     }
 
-    private String sendLibraTestnetTransaction(String trxId) throws ExecutionException, InterruptedException, IOException {
-        AuthenticationKey authenticationKey = AuthenticationKey.fromPublicKey(CredentialsUtil.deriveLibraPublicKey(proxyCredentials));
+    private String sendLibraTestnetTransaction(KeyPair clientCredentials, String trxId) throws InterruptedException {
+        AuthenticationKey authenticationKey = AuthenticationKey.fromPublicKey(CredentialsUtil.deriveLibraPublicKey(clientCredentials));
         AccountAddress sourceAccount = AccountAddress.fromAuthenticationKey(authenticationKey);
         log.info("Source account authentication key: {}, address: {}", authenticationKey, sourceAccount);
         Account accountState = libraClient.getAccount(sourceAccount);
@@ -114,7 +117,7 @@ public class LibraIntegrationTest {
         // If the account already exists, then the authentication key of the target
         // account is not required and the account address would be enough
         AuthenticationKey authenticationKeyTarget = AuthenticationKey
-                .fromHexString("37b1b993c4d932b6830332d01f3cde4afe7f9fc36a7b207ef8960d2b81259180");
+                .fromPublicKey(proxyCredentials.getPublic());
 
         long amount = 1;
         long sequenceNumber = accountState.sequenceNumber();
@@ -151,8 +154,8 @@ public class LibraIntegrationTest {
 
         SignedTransaction signedTransaction = ImmutableSignedTransaction.builder()
                 .authenticator(ImmutableTransactionAuthenticatorEd25519.builder()
-                        .publicKey(PublicKey.fromPublicKey(proxyCredentials.getPublic()))
-                        .signature(Signature.signTransaction(transaction, CredentialsUtil.deriveLibraPrivateKey(proxyCredentials)))
+                        .publicKey(PublicKey.fromPublicKey(clientCredentials.getPublic()))
+                        .signature(Signature.signTransaction(transaction, CredentialsUtil.deriveLibraPrivateKey(clientCredentials)))
                         .build())
                 .transaction(transaction)
                 .build();
@@ -160,8 +163,8 @@ public class LibraIntegrationTest {
         libraClient.submit(signedTransaction);
 
         // get the transaction and read the metadata
-        Wait.until(transactionFound(AccountAddress.fromAuthenticationKey(authenticationKey), sequenceNumber,
-                libraClient));
+        //Wait.until(transactionFound(AccountAddress.fromAuthenticationKey(authenticationKey), sequenceNumber, libraClient));
+        Thread.sleep(2000);
         UserTransaction t = (UserTransaction) libraClient.getAccountTransaction(sourceAccount, sequenceNumber, true)
                 .transaction();
         PeerToPeerWithMetadataScript script = (PeerToPeerWithMetadataScript) t.script();
