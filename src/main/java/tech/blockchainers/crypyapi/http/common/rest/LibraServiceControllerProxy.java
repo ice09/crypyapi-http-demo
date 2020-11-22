@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 
 public abstract class LibraServiceControllerProxy {
 
@@ -33,7 +34,7 @@ public abstract class LibraServiceControllerProxy {
         return paymentDto;
     }
 
-    public boolean isServiceCallAllowed(int amountInWei, String trxHash, String signedTrxId) throws IOException, InterruptedException, NoSuchAlgorithmException {
+    public boolean isServiceCallAllowed(int amountInWei, String trxHash, String signedTrxId) throws IOException, InterruptedException, NoSuchAlgorithmException, InvalidKeySpecException {
         return libraCorrelationService.isServiceCallAllowed(amountInWei, trxHash, signedTrxId);
     }
 }

@@ -1,7 +1,10 @@
 package tech.blockchainers.crypyapi.http.common.proxy;
 
 import dev.jlibra.AccountAddress;
+import dev.jlibra.AuthenticationKey;
+import dev.jlibra.KeyUtils;
 import dev.jlibra.client.LibraClient;
+import dev.jlibra.client.views.Account;
 import dev.jlibra.client.views.event.Event;
 import dev.jlibra.client.views.event.ReceivedPaymentEventData;
 import dev.jlibra.client.views.transaction.Transaction;
@@ -10,15 +13,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.bouncycastle.util.encoders.Hex;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import tech.blockchainers.crypyapi.http.common.CredentialsUtil;
 import tech.blockchainers.crypyapi.http.service.SignatureService;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,13 +52,14 @@ public class LibraCorrelationService {
         return randomId;
     }
 
-    public void notifyOfTransaction(int amount, String trxId, String trxHash) {
+    public void notifyOfTransaction(int amount, String trxId, String trxHash, String pubKey) {
         correlationIdToTrx.get(trxId).setTrxHash(trxHash);
         correlationIdToTrx.get(trxId).setTrxId(trxId);
         correlationIdToTrx.get(trxId).setAmount(amount);
+        correlationIdToTrx.get(trxId).setPublicKey(pubKey);
     }
 
-    public boolean isServiceCallAllowed(int amountInWei, String sequenceNumber, String signedTrx) throws InterruptedException, NoSuchAlgorithmException {
+    public boolean isServiceCallAllowed(int amountInWei, String sequenceNumber, String signedTrx) throws InterruptedException, NoSuchAlgorithmException, InvalidKeySpecException {
         PaymentDto paymentDto = getCorrelationByTrxHash(sequenceNumber);
         if (paymentDto == null) {
             waitForTransaction(sequenceNumber);
@@ -87,9 +94,10 @@ public class LibraCorrelationService {
         return 0;
     }
 
-    private boolean verifySignerSignature(String sequenceNumber, String signedTrx) throws NoSuchAlgorithmException {
+    private boolean verifySignerSignature(String sequenceNumber, String signedTrx) throws NoSuchAlgorithmException, InvalidKeySpecException {
         PaymentDto paymentDto = getCorrelationByTrxHash(sequenceNumber);
-        return signatureService.verify(paymentDto.getTrxId().getBytes(StandardCharsets.UTF_8), Hex.decode(signedTrx), credentials.getPublic());
+        PublicKey pubKey = KeyFactory.getInstance("Ed25519").generatePublic(new X509EncodedKeySpec(Hex.decode(paymentDto.getPublicKey())));
+        return signatureService.verify(paymentDto.getTrxId().getBytes(StandardCharsets.UTF_8), Hex.decode(signedTrx), pubKey);
     }
 
     public PaymentDto getCorrelationByTrxHash(String trxHash) {
@@ -105,6 +113,7 @@ public class LibraCorrelationService {
         for (dev.jlibra.client.views.transaction.Transaction tx : result) {
             if (tx instanceof UserTransaction) {
                 Long txs = ((UserTransaction) tx).sequenceNumber();
+                String pubKey = ((UserTransaction) tx).publicKey();
                 if (txs > lastSeqNo) {
                     lastSeqNo = txs;
                 }
@@ -114,7 +123,7 @@ public class LibraCorrelationService {
                     log.debug("Retrieved transactions {}, processing...", lastSeqNo);
                     for (Event event : tx.events()) {
                         if (event instanceof ReceivedPaymentEventData) {
-                            handleReceivedTransaction(proxyAddress, (ReceivedPaymentEventData)event, (UserTransaction)tx);
+                            handleReceivedTransaction(proxyAddress, (ReceivedPaymentEventData)event, event.sequenceNumber(), pubKey);
                             break;
                         }
                     }
@@ -124,19 +133,22 @@ public class LibraCorrelationService {
         }
     }
 
-    private void handleReceivedTransaction(String proxyAddress, ReceivedPaymentEventData txEvent, UserTransaction txData) {
+    private void handleReceivedTransaction(String proxyAddress, ReceivedPaymentEventData txEvent, Long txData, String pubKey) {
         String input = txEvent.metadata();
+        if (StringUtils.isEmpty(input)) {
+            return;
+        }
         Long value = txEvent.amount().amount();
         String from = txEvent.sender();
         log.debug("Got transaction to {} with data {}", proxyAddress, input);
         if (StringUtils.isNotEmpty(txEvent.receiver()) && txEvent.receiver().toLowerCase().equals(proxyAddress.toLowerCase())) {
-            String trxId = new String(Hex.decode(input.substring(2).getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8);
+            String trxId = new String(Hex.decode(input.getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8);
             log.debug("Got transaction from {} with input {}", from, trxId);
             if (!correlationIdToTrx.containsKey(trxId)) {
                 log.info("Cannot correlate trxId {}, no entry found, maybe request was already completed.", trxId);
             } else {
                 if (correlationIdToTrx.get(trxId).getAddress().toLowerCase().equals(from)) {
-                    notifyOfTransaction(value.intValue(), trxId, String.valueOf(txData.sequenceNumber()));
+                    notifyOfTransaction(value.intValue(), trxId, String.valueOf(txData), "302a300506032b6570032100" + pubKey);
                 } else {
                     log.info("Cannot correlate trxId {}, from-address {} is different to stored {}", trxId, from, correlationIdToTrx.get(trxId).getAddress());
                 }
@@ -145,18 +157,18 @@ public class LibraCorrelationService {
     }
 
     private void waitForTransaction(String sequenceNumber) throws InterruptedException {
-        String proxyAddress = CredentialsUtil.deriveLibraAddress(credentials);
         int tries = 0;
-        while (tries < 50) {
-            Transaction result = libraClient.getAccountTransaction(AccountAddress.fromHexString(proxyAddress), Long.valueOf(sequenceNumber), true);
-            if (!(result.transaction() instanceof UserTransaction)) {
-                continue;
-            }
-            for (Event event : result.events()) {
-                if (event.data() instanceof ReceivedPaymentEventData) {
-                    handleReceivedTransaction(CredentialsUtil.deriveLibraAddress(credentials), (ReceivedPaymentEventData) event.data(), (UserTransaction)result.transaction());
-                    break;
+        AccountAddress accountAddress = AccountAddress.fromHexString(CredentialsUtil.deriveLibraAddress(credentials));
+        while (tries < 5) {
+            String receivedEvKey = libraClient.getAccount(accountAddress).receivedEventsKey();
+            List<Event> results = libraClient.getEvents(receivedEvKey, 0 , 1000);
+            for (Event result : results) {
+                if (!(result.data() instanceof ReceivedPaymentEventData)) {
+                    continue;
                 }
+                List<Transaction> trxs = libraClient.getTransactions(result.transactionVersion(), 1, false);
+                String pubKey = ((UserTransaction) trxs.get(0).transaction()).publicKey();
+                handleReceivedTransaction(CredentialsUtil.deriveLibraAddress(credentials), (ReceivedPaymentEventData) result.data(), result.transactionVersion(), pubKey);
             }
             log.debug("Waiting for transaction {} to be mined.", sequenceNumber);
             Thread.sleep(100);

@@ -20,5 +20,6 @@ public class PaymentDto {
     private String trxIdHex;
     private String address;
     private String signedTrxId;
+    private String publicKey;
 
 }
