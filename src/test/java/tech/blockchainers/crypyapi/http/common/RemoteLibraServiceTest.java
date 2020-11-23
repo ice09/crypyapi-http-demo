@@ -57,7 +57,7 @@ public class RemoteLibraServiceTest {
         Security.addProvider(new BouncyCastleProvider());
     }
 
-    //@Test
+    @Test
     public void shouldCallCompletePaymentFlow() throws InterruptedException, IOException {
         KeyPair clientCredentials = CredentialsUtil.createRandomLibraCredentials();
         CredentialsUtil.mintAmount(clientCredentials);
@@ -153,7 +153,7 @@ public class RemoteLibraServiceTest {
         UserTransaction t = (UserTransaction) tx.transaction();
         PeerToPeerWithMetadataScript script = (PeerToPeerWithMetadataScript) t.script();
 
-        log.info("Metadata: {}", new String(Hex.decode(script.metadata())));
+        log.debug("Sending with Metadata: {}", new String(Hex.decode(script.metadata())));
 
         return tx.version();
     }}

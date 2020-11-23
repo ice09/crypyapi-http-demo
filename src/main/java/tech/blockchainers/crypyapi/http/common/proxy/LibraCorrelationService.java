@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.bouncycastle.util.encoders.Hex;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import tech.blockchainers.crypyapi.http.common.CredentialsUtil;
 import tech.blockchainers.crypyapi.http.service.SignatureService;
@@ -78,22 +79,6 @@ public class LibraCorrelationService {
         return verified;
     }
 
-    private long getAmountOfTransaction(String trxHash) throws IOException {
-        String accountAddress = CredentialsUtil.deriveLibraAddress(credentials);
-        List<dev.jlibra.client.views.transaction.Transaction> trxs = libraClient.getAccountTransactions(AccountAddress.fromHexString(accountAddress), 0, 1000, true);
-        for (dev.jlibra.client.views.transaction.Transaction tx : trxs) {
-            if (tx.hash() == trxHash) {
-                for (Event event : tx.events()) {
-                    if (event.data() instanceof ReceivedPaymentEventData) {
-                        ReceivedPaymentEventData edata = (ReceivedPaymentEventData) event.data();
-                        return edata.amount().amount();
-                    }
-                }
-            }
-        }
-        return 0;
-    }
-
     private boolean verifySignerSignature(String sequenceNumber, String signedTrx) throws NoSuchAlgorithmException, InvalidKeySpecException {
         PaymentDto paymentDto = getCorrelationByTrxHash(sequenceNumber);
         PublicKey pubKey = KeyFactory.getInstance("Ed25519").generatePublic(new X509EncodedKeySpec(Hex.decode(paymentDto.getPublicKey())));
@@ -105,32 +90,10 @@ public class LibraCorrelationService {
         return value.map(Map.Entry::getValue).orElse(null);
     }
 
-    //@Scheduled(fixedDelay = 200)
+    @Scheduled(fixedDelay = 200)
     private void waitForMoneyTransfer() {
         String proxyAddress = CredentialsUtil.deriveLibraAddress(credentials);
-        List<dev.jlibra.client.views.transaction.Transaction> result = libraClient.getAccountTransactions(AccountAddress.fromHexString(proxyAddress), 0, 1000, false);
-        long lastSeqNo = 0;
-        for (dev.jlibra.client.views.transaction.Transaction tx : result) {
-            if (tx instanceof UserTransaction) {
-                Long txs = ((UserTransaction) tx).sequenceNumber();
-                String pubKey = ((UserTransaction) tx).publicKey();
-                if (txs > lastSeqNo) {
-                    lastSeqNo = txs;
-                }
-                if (lastBlock == lastSeqNo) {
-                    log.debug("No new transactions, resuming.");
-                } else {
-                    log.debug("Retrieved transactions {}, processing...", lastSeqNo);
-                    for (Event event : tx.events()) {
-                        if (event instanceof ReceivedPaymentEventData) {
-                            handleReceivedTransaction(proxyAddress, (ReceivedPaymentEventData)event, event.sequenceNumber(), pubKey);
-                            break;
-                        }
-                    }
-                    lastBlock = lastSeqNo;
-                }
-            }
-        }
+        checkAccountForReceivedTransactions(AccountAddress.fromHexString(proxyAddress));
     }
 
     private void handleReceivedTransaction(String proxyAddress, ReceivedPaymentEventData txEvent, Long txData, String pubKey) {
@@ -149,6 +112,7 @@ public class LibraCorrelationService {
             } else {
                 if (correlationIdToTrx.get(trxId).getAddress().toLowerCase().equals(from)) {
                     notifyOfTransaction(value.intValue(), trxId, String.valueOf(txData), "302a300506032b6570032100" + pubKey);
+                    lastBlock = Math.max(txData, lastBlock);
                 } else {
                     log.info("Cannot correlate trxId {}, from-address {} is different to stored {}", trxId, from, correlationIdToTrx.get(trxId).getAddress());
                 }
@@ -160,19 +124,26 @@ public class LibraCorrelationService {
         int tries = 0;
         AccountAddress accountAddress = AccountAddress.fromHexString(CredentialsUtil.deriveLibraAddress(credentials));
         while (tries < 5) {
-            String receivedEvKey = libraClient.getAccount(accountAddress).receivedEventsKey();
-            List<Event> results = libraClient.getEvents(receivedEvKey, 0 , 1000);
-            for (Event result : results) {
-                if (!(result.data() instanceof ReceivedPaymentEventData)) {
-                    continue;
-                }
-                List<Transaction> trxs = libraClient.getTransactions(result.transactionVersion(), 1, false);
-                String pubKey = ((UserTransaction) trxs.get(0).transaction()).publicKey();
-                handleReceivedTransaction(CredentialsUtil.deriveLibraAddress(credentials), (ReceivedPaymentEventData) result.data(), result.transactionVersion(), pubKey);
-            }
+            checkAccountForReceivedTransactions(accountAddress);
             log.debug("Waiting for transaction {} to be mined.", sequenceNumber);
             Thread.sleep(100);
             tries++;
+        }
+    }
+
+    private void checkAccountForReceivedTransactions(AccountAddress accountAddress) {
+        String receivedEvKey = libraClient.getAccount(accountAddress).receivedEventsKey();
+        List<Event> results = libraClient.getEvents(receivedEvKey, 0, 1000);
+        for (Event result : results) {
+            if (!(result.data() instanceof ReceivedPaymentEventData)) {
+                continue;
+            }
+            if (result.transactionVersion() < lastBlock) {
+                continue;
+            }
+            List<Transaction> trxs = libraClient.getTransactions(result.transactionVersion(), 1, false);
+            String pubKey = ((UserTransaction) trxs.get(0).transaction()).publicKey();
+            handleReceivedTransaction(CredentialsUtil.deriveLibraAddress(credentials), (ReceivedPaymentEventData) result.data(), result.transactionVersion(), pubKey);
         }
     }
 }
