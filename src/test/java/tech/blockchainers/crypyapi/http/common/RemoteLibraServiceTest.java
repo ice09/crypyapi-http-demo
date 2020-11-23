@@ -57,7 +57,7 @@ public class RemoteLibraServiceTest {
         Security.addProvider(new BouncyCastleProvider());
     }
 
-    @Test
+    //@Test
     public void shouldCallCompletePaymentFlow() throws InterruptedException, IOException {
         KeyPair clientCredentials = CredentialsUtil.createRandomLibraCredentials();
         CredentialsUtil.mintAmount(clientCredentials);
