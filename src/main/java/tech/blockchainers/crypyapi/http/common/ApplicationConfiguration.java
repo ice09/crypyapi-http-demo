@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import javax.annotation.PostConstruct;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
@@ -28,10 +29,13 @@ public class ApplicationConfiguration {
     public LibraClient libraClient() {
         return LibraClient.builder().withUrl(libraRpcUrl).build();
     }
+
     @Bean
     public KeyPair createLibraCredentials() throws NoSuchProviderException, NoSuchAlgorithmException {
         KeyPairGenerator kpGen = KeyPairGenerator.getInstance("Ed25519", "BC");
         KeyPair keyPair = kpGen.generateKeyPair();
+        // Account does not exist if not involved in a transaction like minting
+        CredentialsUtil.mintAmount(keyPair);
         return keyPair;
     }
 

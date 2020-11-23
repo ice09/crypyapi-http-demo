@@ -2,6 +2,10 @@ package tech.blockchainers.crypyapi.http.common;
 
 import dev.jlibra.AccountAddress;
 import dev.jlibra.AuthenticationKey;
+import dev.jlibra.client.LibraClient;
+import dev.jlibra.client.views.Account;
+import dev.jlibra.faucet.Faucet;
+import dev.jlibra.poller.Wait;
 import dev.jlibra.serialization.ByteArray;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.jcajce.provider.asymmetric.edec.BCEdDSAPrivateKey;
@@ -10,6 +14,8 @@ import org.bouncycastle.jcajce.provider.asymmetric.edec.BCEdDSAPublicKey;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PublicKey;
+
+import static dev.jlibra.poller.Conditions.accountHasPositiveBalance;
 
 @Slf4j
 public class CredentialsUtil {
@@ -51,6 +57,23 @@ public class CredentialsUtil {
 
     public static AuthenticationKey deriveLibraAuthenticationKey(PublicKey publicKey) {
         return AuthenticationKey.fromPublicKey(publicKey);
+    }
+
+    public static void mintAmount(KeyPair credentials) {
+        Faucet faucet = Faucet.builder().build();
+        AuthenticationKey authKey = CredentialsUtil.deriveLibraAuthenticationKey(credentials.getPublic());
+
+        faucet.mint(authKey, 100L * 1_000_000L, "Coin1");
+
+        LibraClient client = LibraClient.builder()
+                .withUrl("https://client.testnet.libra.org/v1/")
+                .build();
+
+        Wait.until(accountHasPositiveBalance(AccountAddress.fromAuthenticationKey(authKey), client));
+
+        Account account = client.getAccount(AccountAddress.fromAuthenticationKey(authKey));
+        log.info("Balance: {} {} {}", account.address(), account.balances().get(0).amount() / 1_000_000,
+                account.balances().get(0).currency());
     }
 
 }

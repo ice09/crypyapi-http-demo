@@ -5,9 +5,9 @@ import dev.jlibra.AuthenticationKey;
 import dev.jlibra.PublicKey;
 import dev.jlibra.client.LibraClient;
 import dev.jlibra.client.views.Account;
+import dev.jlibra.client.views.Amount;
 import dev.jlibra.client.views.transaction.PeerToPeerWithMetadataScript;
 import dev.jlibra.client.views.transaction.UserTransaction;
-import dev.jlibra.faucet.Faucet;
 import dev.jlibra.move.Move;
 import dev.jlibra.poller.Wait;
 import dev.jlibra.serialization.ByteArray;
@@ -24,75 +24,77 @@ import dev.jlibra.transaction.argument.AccountAddressArgument;
 import dev.jlibra.transaction.argument.U64Argument;
 import dev.jlibra.transaction.argument.U8VectorArgument;
 import lombok.extern.slf4j.Slf4j;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.util.encoders.Hex;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.scheduling.annotation.EnableScheduling;
-import tech.blockchainers.crypyapi.http.common.proxy.LibraCorrelationService;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestTemplate;
+import tech.blockchainers.crypyapi.http.common.proxy.PaymentDto;
 import tech.blockchainers.crypyapi.http.service.SignatureService;
 
 import java.io.IOException;
 import java.security.KeyPair;
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
+import java.security.Security;
 import java.time.Instant;
-import java.util.concurrent.ExecutionException;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
-import static dev.jlibra.poller.Conditions.accountHasPositiveBalance;
 import static dev.jlibra.poller.Conditions.transactionFound;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Arrays.asList;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@SpringBootTest
-@EnableScheduling
 @Slf4j
-public class LibraIntegrationTest {
+public class RemoteLibraServiceTest {
 
-    @Autowired
-    private LibraCorrelationService libraCorrelationService;
+    private LibraClient libraClient = new LibraClient.LibraClientBuilder().withUrl("https://client.testnet.libra.org/v1/").build();
 
-    @Autowired
-    private SignatureService signatureService;
-
-    @Autowired
-    private KeyPair proxyCredentials;
-
-    @Autowired
-    private LibraClient libraClient;
-
-    @Test
-    public void testPaymentFlow() throws InterruptedException, NoSuchAlgorithmException, InvalidKeySpecException {
-        log.debug("Signing Address {}", CredentialsUtil.deriveLibraAddress(proxyCredentials));
-        String trxId = libraCorrelationService.storeNewIdentifier(CredentialsUtil.deriveLibraAddress(proxyCredentials));
-        libraCorrelationService.notifyOfTransaction(0, trxId, "0xHASH", Hex.toHexString(proxyCredentials.getPublic().getEncoded()));
-        String signedTrxId = signatureService.sign(trxId, proxyCredentials);
-        boolean isServiceCallAllowed = libraCorrelationService.isServiceCallAllowed(0, "0xHASH", signedTrxId);
-        assertTrue(isServiceCallAllowed);
+    static {
+        Security.addProvider(new BouncyCastleProvider());
     }
 
-    @Test
-    public void testCompleteLifecycle() throws InterruptedException, NoSuchAlgorithmException, InvalidKeySpecException {
+    //@Test
+    public void shouldCallCompletePaymentFlow() throws InterruptedException, IOException {
         KeyPair clientCredentials = CredentialsUtil.createRandomLibraCredentials();
         CredentialsUtil.mintAmount(clientCredentials);
-        // still necessary? Is done on PostContrust on server
-        CredentialsUtil.mintAmount(proxyCredentials);
-        String trxId = libraCorrelationService.storeNewIdentifier(CredentialsUtil.deriveLibraAddress(clientCredentials));
-        String trxHash = String.valueOf(sendLibraTestnetTransaction(clientCredentials, trxId));
-        log.info("Sent transaction {}", trxHash);
-        String signedTrxId = signatureService.sign(trxId, clientCredentials);
-        boolean isServiceCallAllowed = libraCorrelationService.isServiceCallAllowed(0, trxHash, signedTrxId);
-        assertTrue(isServiceCallAllowed);
+        boolean stillMoneyForCheapJokes = getCurrentBalance(CredentialsUtil.deriveLibraAddress(clientCredentials)) > 1;
+        while (stillMoneyForCheapJokes) {
+            RestTemplate restTemplate = new RestTemplate();
+
+            Map<String, String> params = new HashMap<>();
+            params.put("address", CredentialsUtil.deriveLibraAddress(clientCredentials));
+            PaymentDto response = restTemplate.getForObject("http://localhost:8889/jokeForLibra/setup?address={address}", PaymentDto.class, params);
+            String trxId = response.getTrxId();
+            log.debug("Send payment transaction with data '{}'", trxId);
+
+            Long trxVersion = sendLibraTestnetTransaction(clientCredentials, response.getServiceAddress(), trxId);
+
+            String signedTrxId = new SignatureService().sign(trxId, clientCredentials);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setAccept(Arrays.asList(MediaType.ALL));
+            headers.set("CPA-Signed-Identifier", signedTrxId);
+            headers.set("CPA-Transaction-Hash", String.valueOf(trxVersion));
+
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+            ResponseEntity<String> joke = restTemplate.exchange("http://localhost:8889/jokeForLibra/request", HttpMethod.GET, entity, String.class);
+            log.info(("Hold On: {}").toUpperCase(), joke.getBody().toUpperCase());
+            stillMoneyForCheapJokes = getCurrentBalance(CredentialsUtil.deriveLibraAddress(clientCredentials)) > 1;
+            if (stillMoneyForCheapJokes) {
+                log.info("I still have some money left, lets go for another one.");
+            }
+        }
     }
 
-    private void pause(long ms) {
-        try {
-            Thread.sleep(ms);
-        } catch (InterruptedException e) {}
+    private long getCurrentBalance(String address) throws IOException {
+        return libraClient.getAccount(AccountAddress.fromHexString(address)).balances().stream().mapToLong(Amount::amount).sum();
     }
 
-    private Long sendLibraTestnetTransaction(KeyPair clientCredentials, String trxId) throws InterruptedException {
+    private Long sendLibraTestnetTransaction(KeyPair clientCredentials, String proxyAddress, String trxId) throws InterruptedException {
         AuthenticationKey authenticationKey = AuthenticationKey.fromPublicKey(CredentialsUtil.deriveLibraPublicKey(clientCredentials));
         AccountAddress sourceAccount = AccountAddress.fromAuthenticationKey(authenticationKey);
         log.info("Source account authentication key: {}, address: {}", authenticationKey, sourceAccount);
@@ -100,19 +102,18 @@ public class LibraIntegrationTest {
 
         // If the account already exists, then the authentication key of the target
         // account is not required and the account address would be enough
-        AuthenticationKey authenticationKeyTarget = AuthenticationKey
-                .fromPublicKey(proxyCredentials.getPublic());
+        //AuthenticationKey authenticationKeyTarget = AuthenticationKey.fromPublicKey(proxyCredentials.getPublic());
 
         long amount = 1;
         long sequenceNumber = accountState.sequenceNumber();
 
         log.info("Sending from {} to {}", AccountAddress.fromAuthenticationKey(authenticationKey),
-                AccountAddress.fromAuthenticationKey(authenticationKeyTarget));
+                proxyAddress);
 
         // Arguments for the peer to peer transaction
         U64Argument amountArgument = U64Argument.from(amount * 1000000);
         AccountAddressArgument addressArgument = AccountAddressArgument.from(
-                AccountAddress.fromAuthenticationKey(authenticationKeyTarget));
+                AccountAddress.fromHexString(proxyAddress));
         U8VectorArgument metadataArgument = U8VectorArgument.from(
                 ByteArray.from(trxId.getBytes(UTF_8)));
         // signature can be used for approved transactions, we are not doing that and
@@ -155,5 +156,4 @@ public class LibraIntegrationTest {
         log.info("Metadata: {}", new String(Hex.decode(script.metadata())));
 
         return tx.version();
-    }
-}
+    }}
