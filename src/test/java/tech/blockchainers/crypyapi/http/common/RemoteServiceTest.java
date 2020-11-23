@@ -1,6 +1,7 @@
 package tech.blockchainers.crypyapi.http.common;
 
 import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -45,7 +46,7 @@ public class RemoteServiceTest {
 
             Map<String, String> params = new HashMap<>();
             params.put("address", credentials.getAddress());
-            PaymentDto response = restTemplate.getForObject("http://localhost:8889/joke/setup?address={address}", PaymentDto.class, params);
+            PaymentDto response = restTemplate.getForObject("http://localhost:8889/jokeForEthereum/setup?address={address}", PaymentDto.class, params);
             String trxId = response.getTrxId();
             log.debug("Send payment transaction with data '{}'", trxId);
 
@@ -60,7 +61,7 @@ public class RemoteServiceTest {
             headers.set("CPA-Transaction-Hash", trxHash);
 
             HttpEntity<String> entity = new HttpEntity<>(headers);
-            ResponseEntity<String> joke = restTemplate.exchange("http://localhost:8889/joke/request", HttpMethod.GET, entity, String.class);
+            ResponseEntity<String> joke = restTemplate.exchange("http://localhost:8889/jokeForEthereum/request", HttpMethod.GET, entity, String.class);
             log.info(("Hold On: {}").toUpperCase(), joke.getBody().toUpperCase());
             stillMoneyForCheapJokes = getCurrentBalance(credentials.getAddress()).compareTo(BigInteger.ONE.divide(BigInteger.TEN)) > 0;
             if (stillMoneyForCheapJokes) {

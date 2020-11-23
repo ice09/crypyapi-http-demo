@@ -16,7 +16,7 @@ import tech.blockchainers.crypyapi.http.service.SignatureService;
 import java.io.IOException;
 
 @RestController()
-@RequestMapping("/joke")
+@RequestMapping("/jokeForEthereum")
 public class BestJokeEverController extends ServiceControllerProxy {
 
     private final BestJokeEverService bestJokeEverService;
