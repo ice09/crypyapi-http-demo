@@ -95,7 +95,7 @@ public class LibraIntegrationTest {
     private Long sendLibraTestnetTransaction(KeyPair clientCredentials, String trxId) throws InterruptedException {
         AuthenticationKey authenticationKey = AuthenticationKey.fromPublicKey(CredentialsUtil.deriveLibraPublicKey(clientCredentials));
         AccountAddress sourceAccount = AccountAddress.fromAuthenticationKey(authenticationKey);
-        log.info("Source account authentication key: {}, address: {}", authenticationKey, sourceAccount);
+        log.debug("Source account authentication key: {}, address: {}", authenticationKey, sourceAccount);
         Account accountState = libraClient.getAccount(sourceAccount);
 
         // If the account already exists, then the authentication key of the target
@@ -106,7 +106,7 @@ public class LibraIntegrationTest {
         long amount = 1;
         long sequenceNumber = accountState.sequenceNumber();
 
-        log.info("Sending from {} to {}", AccountAddress.fromAuthenticationKey(authenticationKey),
+        log.debug("Sending from {} to {}", AccountAddress.fromAuthenticationKey(authenticationKey),
                 AccountAddress.fromAuthenticationKey(authenticationKeyTarget));
 
         // Arguments for the peer to peer transaction

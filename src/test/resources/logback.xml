@@ -9,7 +9,11 @@
         <appender-ref ref="STDOUT"/>
     </logger>
 
-    <logger name="tech" level="debug" additivity="false">
+    <logger name="tech" level="info" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+    <logger name="dev" level="warn" additivity="false">
         <appender-ref ref="STDOUT"/>
     </logger>
 
