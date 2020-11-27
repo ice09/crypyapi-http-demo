@@ -1,7 +1,6 @@
-package tech.blockchainers.crypyapi.http.common;
+package tech.blockchainers.crypyapi.http.client;
 
 import lombok.extern.slf4j.Slf4j;
-import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -20,23 +19,27 @@ import org.web3j.protocol.core.methods.response.EthSendTransaction;
 import org.web3j.protocol.http.HttpService;
 import org.web3j.tx.gas.DefaultGasProvider;
 import org.web3j.utils.Numeric;
+import tech.blockchainers.crypyapi.http.common.CredentialsUtil;
 import tech.blockchainers.crypyapi.http.common.proxy.PaymentDto;
 import tech.blockchainers.crypyapi.http.service.SignatureService;
 
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 @Slf4j
-public class RemoteServiceTest {
+public class EthereumClient {
 
     private Web3j web3j = Web3j.build(new HttpService("https://sokol.poa.network"));
 
-    //@Test
+    private String host = Files.exists(Path.of("/.dockerenv")) ? "host.docker.internal" : "localhost";
+
     public void shouldCallCompletePaymentFlow() throws InterruptedException, ExecutionException, IOException {
         Credentials credentials = CredentialsUtil.createRandomEthereumCredentials();
         waitForMoney(credentials.getAddress());
@@ -46,7 +49,7 @@ public class RemoteServiceTest {
 
             Map<String, String> params = new HashMap<>();
             params.put("address", credentials.getAddress());
-            PaymentDto response = restTemplate.getForObject("http://localhost:8889/jokeForEthereum/setup?address={address}", PaymentDto.class, params);
+            PaymentDto response = restTemplate.getForObject("http://" + host + ":8889/jokeForEthereum/setup?address={address}", PaymentDto.class, params);
             String trxId = response.getTrxId();
             log.debug("Send payment transaction with data '{}'", trxId);
 
@@ -61,11 +64,12 @@ public class RemoteServiceTest {
             headers.set("CPA-Transaction-Hash", trxHash);
 
             HttpEntity<String> entity = new HttpEntity<>(headers);
-            ResponseEntity<String> joke = restTemplate.exchange("http://localhost:8889/jokeForEthereum/request", HttpMethod.GET, entity, String.class);
+            ResponseEntity<String> joke = restTemplate.exchange("http://" + host + ":8889/jokeForEthereum/request", HttpMethod.GET, entity, String.class);
             log.info(("Hold On: {}").toUpperCase(), joke.getBody().toUpperCase());
-            stillMoneyForCheapJokes = getCurrentBalance(credentials.getAddress()).compareTo(BigInteger.ONE.divide(BigInteger.TEN)) > 0;
+            BigInteger currentBalance = getCurrentBalance(credentials.getAddress());
+            stillMoneyForCheapJokes = currentBalance.compareTo(BigInteger.ONE.divide(BigInteger.TEN)) > 0;
             if (stillMoneyForCheapJokes) {
-                log.info("I still have some money left, lets go for another one.");
+                log.info("I still have some money left ({} wXDai), lets go for another one.", currentBalance);
             }
         }
     }
@@ -75,11 +79,6 @@ public class RemoteServiceTest {
     }
 
     private void waitForTransaction(String trxHash) throws IOException, InterruptedException {
-        if (log.isDebugEnabled()) {
-            log.debug("Waiting for payment transaction {} to be mined.", trxHash);
-        } else {
-            log.info("Waiting for payment transaction to be mined.", trxHash);
-        }
         while (true) {
             EthGetTransactionReceipt transactionReceipt = web3j
                     .ethGetTransactionReceipt(trxHash)

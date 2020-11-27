@@ -1,0 +1,1 @@
+docker run --name crypyapi-http-demo-client -e mode=client ice0nine/crypyapi-http-demo:latest
