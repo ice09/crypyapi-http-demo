@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.test.context.TestPropertySource;
 import tech.blockchainers.crypyapi.http.common.proxy.LibraCorrelationService;
 import tech.blockchainers.crypyapi.http.service.SignatureService;
 
@@ -48,6 +49,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @SpringBootTest
 @EnableScheduling
 @Slf4j
+@TestPropertySource("classpath:crypyapi.properties")
 public class LibraIntegrationTest {
 
     @Autowired

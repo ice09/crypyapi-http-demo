@@ -1,9 +1,8 @@
-package tech.blockchainers.crypyapi.http.common;
+package tech.blockchainers.crypyapi.http.client;
 
 import dev.jlibra.AccountAddress;
 import dev.jlibra.AuthenticationKey;
 import dev.jlibra.PublicKey;
-import dev.jlibra.client.LibraClient;
 import dev.jlibra.client.views.Account;
 import dev.jlibra.client.views.Amount;
 import dev.jlibra.client.views.transaction.PeerToPeerWithMetadataScript;
@@ -26,17 +25,19 @@ import dev.jlibra.transaction.argument.U8VectorArgument;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.util.encoders.Hex;
-import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
+import tech.blockchainers.crypyapi.http.common.CredentialsUtil;
 import tech.blockchainers.crypyapi.http.common.proxy.PaymentDto;
 import tech.blockchainers.crypyapi.http.service.SignatureService;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.KeyPair;
 import java.security.Security;
 import java.time.Instant;
@@ -49,15 +50,16 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Arrays.asList;
 
 @Slf4j
-public class RemoteLibraServiceTest {
+public class LibraClient {
 
-    private LibraClient libraClient = new LibraClient.LibraClientBuilder().withUrl("https://client.testnet.libra.org/v1/").build();
+    private dev.jlibra.client.LibraClient libraClient = new dev.jlibra.client.LibraClient.LibraClientBuilder().withUrl("https://client.testnet.libra.org/v1/").build();
+
+    private String host = Files.exists(Path.of("/.dockerenv")) ? "host.docker.internal" : "localhost";
 
     static {
         Security.addProvider(new BouncyCastleProvider());
     }
 
-    //@Test
     public void shouldCallCompletePaymentFlow() throws InterruptedException, IOException {
         KeyPair clientCredentials = CredentialsUtil.createRandomLibraCredentials();
         CredentialsUtil.mintAmount(clientCredentials);
@@ -67,7 +69,7 @@ public class RemoteLibraServiceTest {
 
             Map<String, String> params = new HashMap<>();
             params.put("address", CredentialsUtil.deriveLibraAddress(clientCredentials));
-            PaymentDto response = restTemplate.getForObject("http://localhost:8889/jokeForLibra/setup?address={address}", PaymentDto.class, params);
+            PaymentDto response = restTemplate.getForObject("http://" + host + ":8889/jokeForLibra/setup?address={address}", PaymentDto.class, params);
             String trxId = response.getTrxId();
             log.debug("Send payment transaction with data '{}'", trxId);
 
@@ -81,11 +83,12 @@ public class RemoteLibraServiceTest {
             headers.set("CPA-Transaction-Hash", String.valueOf(trxVersion));
 
             HttpEntity<String> entity = new HttpEntity<>(headers);
-            ResponseEntity<String> joke = restTemplate.exchange("http://localhost:8889/jokeForLibra/request", HttpMethod.GET, entity, String.class);
+            ResponseEntity<String> joke = restTemplate.exchange("http://" + host + ":8889/jokeForLibra/request", HttpMethod.GET, entity, String.class);
             log.info(("Hold On: {}").toUpperCase(), joke.getBody().toUpperCase());
-            stillMoneyForCheapJokes = getCurrentBalance(CredentialsUtil.deriveLibraAddress(clientCredentials)) > 1;
+            long currentBalance = getCurrentBalance(CredentialsUtil.deriveLibraAddress(clientCredentials));
+            stillMoneyForCheapJokes = currentBalance > 1;
             if (stillMoneyForCheapJokes) {
-                log.info("I still have some money left, lets go for another one.");
+                log.info("I still have some money left ({} microCoin1), lets go for another one.", currentBalance);
             }
         }
     }
@@ -156,4 +159,10 @@ public class RemoteLibraServiceTest {
         log.debug("Sending with Metadata: {}", new String(Hex.decode(script.metadata())));
 
         return tx.version();
-    }}
+    }
+
+    public static void main(String[] args) throws IOException, InterruptedException {
+        new LibraClient().shouldCallCompletePaymentFlow();
+    }
+
+}
