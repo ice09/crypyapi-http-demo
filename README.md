@@ -1,19 +1,30 @@
-# almost-kyc-token-distribution
+# Crypto Payable API (crypyAPI) xDai edition
 
-This project implements an Almost KYC Airdrop PoC, including
+This project implements a demo for Crypto Payments for HTTP Services.  
 
-* 3Box usage for verification of Github and Twitter Claims
-* Smart Contract interactions and event subscriptions with Java
+There are two editions: xDai and Libra. This xDai edition uses the EVM-compliant xDai side-chain (and for this demo the Sokol Testnet).
 
-## Running the Token Distribution Example on Rinkeby
+## Demo Scenarios
 
-There are two scenarios for running the Token Distribution Example:
-* _Scenario 1: Local Test_  
+This main purpose of this demo is described in this blog post:
 
-In the local test scenario, Ganache has to be running with a certain mnemonic. The Contracts (`TokenProspectRegistry` and `UnlimitedCurrencyToken`) are deployed to the local chain and if `check.claims` in the properties is not activated, no external request is executed. 
-* _Scenario 2: Remote Test_  
+## Starting the Demo (I just want to see some jokes)
 
-In the remote test scenario, the Java application is connected to the Rinkeby Ethereum Testnet. The application is used for account creation and prospect registration only, the check and Token transfer is executed by an external server process. The external process is not called directly, Smart Contract events are used for messaging and the external server process subscribed to the Registry Contract `registered` events.  
+* Run Docker image in "Service Mode"
+```
+docker run -d -p 8889:8889 ice0nine/
+```
+
+* Run Docker image in "Client Mode"
+```
+docker run ice0nine/akyc-token-distribution
+```
+
+### Get SPOA (Sokol Testnet POA) from Faucet
+
+### Send SPOA to Joke Client
+
+## Local Demo Setup (I want to see how this works)
 
 ### Runtime Environment Setup
 
@@ -26,18 +37,6 @@ Depending on the scenario, there are two type of setups.
 ```
 docker run -d -p 8888:8888 ice0nine/akyc-token-distribution
 ```
-* Open http://127.0.0.1:8888/swagger-ui.html
-* Call `/createAccount` (execute)
-
-<img src="docs/img/createAccount.png" width="50%"></img>
-
-* Note down the private key and Ethereum address
-
-![](docs/img/privateKey.png)
-* Send 1 ETH to the address
-* Call `/signMessageAndRegister` with private key (execute)
-
-![](docs/img/signedMessage.png)
 
 #### For Remote Test
 
