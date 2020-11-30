@@ -6,53 +6,50 @@ There are two editions: xDai and Libra. This xDai edition uses the EVM-compliant
 
 ## Demo Scenarios
 
-This main purpose of this demo is described in this blog post:
+This main purpose of this demo is described in this blog post: http://blockchainers.tech/pay-robots-with-crypto-money/
+
+There are two demo scenarios, a showcase sample and a deep dive sample for developers.
 
 ## Starting the Demo (I just want to see some jokes)
 
 * Run Docker image in "Service Mode"
 ```
-docker run -d -p 8889:8889 ice0nine/
+docker run -d -p 8889:8889 --name crypyapi-http-demo-service ice0nine/crypyapi-http-demo:ethereum
 ```
+
+This container is started in demo mode, you will see just the container-id output.
 
 * Run Docker image in "Client Mode"
 ```
-docker run ice0nine/akyc-token-distribution
+docker run --name crypyapi-http-demo-client -e mode=client ice0nine/crypyapi-http-demo:ethereum
 ```
+
+After the initial start-up, the application will wait for you sending some Sokol POA (1 SPOA is enough).  
 
 ### Get SPOA (Sokol Testnet POA) from Faucet
 
+First, you will have to have a wallet installed and received SPOA on the Sokol Testnet: https://www.poa.network/for-developers/getting-tokens-for-tests/sokol-testnet-faucet
+
 ### Send SPOA to Joke Client
+
+Use the wallet and send 1 SPOA to the address displayed by the client. Afterwards, you should see jokes until the SPOA is spent.
 
 ## Local Demo Setup (I want to see how this works)
 
 ### Runtime Environment Setup
 
-Depending on the scenario, there are two type of setups.
+#### Payment Receiver (Joke Service)
 
-#### For Local Test
+You can import the project into IntelliJ and start the server as a spring boot application (`ERC20Application`)
 
-* Start Ganache on Port 8545 with mnemonic: *happy stem cram drastic uncover machine unfold year sunny feature cross ignore*
-* Run Docker image
+There is an application configuration (`crypyapi.properties`) which should be fine for the demo. However, you can tweak this to you needs.
 ```
-docker run -d -p 8888:8888 ice0nine/akyc-token-distribution
-```
-
-#### For Remote Test
-
-Create local `application.properties` in `/var/config`
-```
-rpc.url=https://rinkeby.infura.io/v3/YOUR_APPLICATION_KEY
-address.token=0x24eaf0fca9190c48c490eef3c0facf218cee6711
-address.registry=0x10c67eFb6a3D9e7Ce14A85E9Fd498E752c38C2Bc
+ethereum.rpc.url=https://sokol.poa.network
 ```
 
-_Windows_
-```
-docker run -d -p 8888:8888 -e SPRING_CONFIG_LOCATION=/var/config/ -v /var/config:/var/config ice0nine/akyc-token-distribution
-```
+#### Payment Sender (Joke Client)
 
-_Linux/MacOS_
-```
-docker run -d -p 8888:8888 -e SPRING_CONFIG_LOCATION=/var/config/ -v /var/config:/var/config ice0nine/akyc-token-distribution
-```
+After the server started, you can run the application again with the environment variable `mode` set to `client`.  
+The client will start and display the address it waits for SPOA to transfer it to the Payment Receiver.
+
+You can then proceed with step *Get SPOA (Sokol Testnet POA) from Faucet* above.
