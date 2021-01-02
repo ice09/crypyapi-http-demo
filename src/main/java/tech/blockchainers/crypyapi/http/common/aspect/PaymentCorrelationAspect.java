@@ -31,7 +31,7 @@ public class PaymentCorrelationAspect {
         Payable payable = method.getAnnotation(Payable.class);
 
         ServiceControllerProxy serviceControllerProxy = (ServiceControllerProxy) joinPoint.getTarget();
-        int amountInWei = payable.equivalentValue();
+        int amountInWei = payable.equivalentValueInWei();
         boolean serviceCallAllowed = serviceControllerProxy.isServiceCallAllowed(amountInWei, trxHash, signedTrxId);
         if (serviceCallAllowed) {
             return joinPoint.proceed();

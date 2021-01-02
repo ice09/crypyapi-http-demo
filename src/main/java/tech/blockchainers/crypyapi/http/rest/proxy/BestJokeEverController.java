@@ -26,9 +26,10 @@ public class BestJokeEverController extends ServiceControllerProxy {
         this.bestJokeEverService = bestJokeEverService;
     }
 
-    @Payable(currency=Currency.wUSD, equivalentValue=100, accepted={StableCoin.DAI, StableCoin.XDAI})
     @GetMapping("/request")
+    @Payable(service = "jokeRequestService", currency=Currency.USD, equivalentValueInWei=100, accepted={StableCoin.DAI, StableCoin.XDAI})
     public String requestService(@RequestHeader("CPA-Transaction-Hash") String trxHash, @RequestHeader("CPA-Signed-Identifier") String signedTrxId) throws IOException, InterruptedException {
         return bestJokeEverService.getBestJokeEver();
     }
+
 }

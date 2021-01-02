@@ -13,7 +13,8 @@ import java.lang.annotation.Target;
 public @interface Payable {
 
     Currency currency();
-    int equivalentValue();
+    int equivalentValueInWei();
     StableCoin[] accepted();
+    String service();
 
 }

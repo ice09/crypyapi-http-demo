@@ -49,11 +49,12 @@ public class EthereumClient {
 
             Map<String, String> params = new HashMap<>();
             params.put("address", credentials.getAddress());
-            PaymentDto response = restTemplate.getForObject("http://" + host + ":8889/jokeForEthereum/setup?address={address}", PaymentDto.class, params);
+            params.put("service", "jokeRequestService");
+            PaymentDto response = restTemplate.getForObject("http://" + host + ":8889/jokeForEthereum/setup?address={address}&service={service}", PaymentDto.class, params);
             String trxId = response.getTrxId();
             log.debug("Send payment transaction with data '{}'", trxId);
 
-            String trxHash = sendSokolTestTransaction(credentials, trxId, response.getServiceAddress());
+            String trxHash = sendSokolTestTransaction(credentials, response.getAmount(), trxId, response.getServiceAddress());
             waitForTransaction(trxHash);
 
             String signedTrxId = new SignatureService().sign(trxId, credentials);
@@ -105,7 +106,7 @@ public class EthereumClient {
         }
         log.info("Thanks! Going to pay Chuck now.");
     }
-    private String sendSokolTestTransaction(Credentials credentials, String trxId, String serviceAddress) throws ExecutionException, InterruptedException, IOException {
+    private String sendSokolTestTransaction(Credentials credentials, int amount, String trxId, String serviceAddress) throws ExecutionException, InterruptedException, IOException {
         EthGetTransactionCount ethGetTransactionCount = web3j.ethGetTransactionCount(
                 credentials.getAddress(), DefaultBlockParameterName.LATEST).sendAsync().get();
 
@@ -117,7 +118,7 @@ public class EthereumClient {
                         DefaultGasProvider.GAS_PRICE.divide(BigInteger.valueOf(4)),
                         DefaultGasProvider.GAS_LIMIT,
                         serviceAddress,
-                        BigInteger.valueOf(100),
+                        BigInteger.valueOf(amount),
                         Numeric.toHexString(trxId.getBytes(StandardCharsets.UTF_8)));
         byte[] signedTrx = TransactionEncoder.signMessage(trx, credentials);
 
